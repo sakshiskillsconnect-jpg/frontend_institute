@@ -31,7 +31,7 @@ const Stepper = ({ currentStep }) => {
           return (
             <div key={step.id} className="flex gap-4 min-h-[90px]">
               {/* LEFT SIDE */}
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center ">
                 
                 {/* CIRCLE */}
                 <div

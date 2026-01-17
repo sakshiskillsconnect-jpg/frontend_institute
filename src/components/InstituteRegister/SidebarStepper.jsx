@@ -39,8 +39,8 @@ const SidebarStepper = ({ currentStep, isThankYou = false }) => {
   return (
     <>
       {/* ================= MOBILE STEPPER ================= */}
-      <div className="md:hidden bg-white px-4 py-3 rounded-xl mb-4">
-        <div className="flex items-center justify-between">
+      <div className="lg:hidden bg-white px-4 py-3 rounded-xl w-full">
+        <div className="flex items-center justify-center gap-2">
           {steps.map((step, index) => {
             const isCompleted =
               step.id < currentStep ||
@@ -53,7 +53,7 @@ const SidebarStepper = ({ currentStep, isThankYou = false }) => {
               <div key={step.id} className="flex items-center flex-1">
                 {/* CIRCLE */}
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center
+                  className={`w-8 h-8 rounded-full flex items-center justify-center 
                     ${
                       isCompleted
                         ? "bg-green-500 text-white"
@@ -85,7 +85,7 @@ const SidebarStepper = ({ currentStep, isThankYou = false }) => {
       </div>
 
       {/* ================= DESKTOP SIDEBAR ================= */}
-      <div className="hidden md:block bg-white rounded-xl p-6">
+      <div className="hidden lg:block bg-white rounded-xl p-6">
         <h3 className="text-sm font-semibold tracking-wide text-gray-600 mb-8">
           REGISTRATION PROGRESS
         </h3>
