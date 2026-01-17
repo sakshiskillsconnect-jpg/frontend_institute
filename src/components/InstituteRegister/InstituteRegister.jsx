@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -52,7 +51,10 @@ const InstituteRegister = () => {
 
     // 🚫 NEVER resume OTP
     if (stepToRestore === STEPS.OTP) {
-      if (parsed.formData?.college && Object.keys(parsed.formData.college).length) {
+      if (
+        parsed.formData?.college &&
+        Object.keys(parsed.formData.college).length
+      ) {
         stepToRestore = STEPS.COLLEGE_INFO;
       } else {
         stepToRestore = STEPS.REGISTRATION;
@@ -135,10 +137,12 @@ const InstituteRegister = () => {
 
   /* -------------------- SIDEBAR STEP -------------------- */
   const sidebarStep = (() => {
-    if (currentStep === STEPS.REGISTRATION || currentStep === STEPS.OTP) return 1;
+    if (currentStep === STEPS.REGISTRATION || currentStep === STEPS.OTP)
+      return 1;
     if (currentStep === STEPS.COLLEGE_SELECT) return 2;
     if (currentStep === STEPS.COLLEGE_INFO) return 3;
-    if (currentStep === STEPS.COURSES || currentStep === STEPS.THANK_YOU) return 4;
+    if (currentStep === STEPS.COURSES || currentStep === STEPS.THANK_YOU)
+      return 4;
     return 1;
   })();
 
@@ -229,9 +233,18 @@ const InstituteRegister = () => {
         <>
           <StepHeader step={4} title="Courses" />
           <StepCourses
+            // onNext={() => {
+            //   //setShowThankYou(true);
+            //   setCurrentStep(STEPS.THANK_YOU);
+            // }}
             onNext={() => {
-              //setShowThankYou(true);
-              setCurrentStep(STEPS.THANK_YOU);
+              // 👇 force sidebar to complete step 4 first
+              setCurrentStep(STEPS.COURSES);
+
+              // 👇 then move to thank you (next render)
+              setTimeout(() => {
+                setCurrentStep(STEPS.THANK_YOU);
+              }, 0);
             }}
             onBack={() => setCurrentStep(STEPS.COLLEGE_INFO)}
           />
@@ -239,9 +252,7 @@ const InstituteRegister = () => {
       )}
 
       {/* STEP 6 */}
-      {currentStep === STEPS.THANK_YOU &&  (
-        <ThankYou onHome={handleGoHome} />
-      )}
+      {currentStep === STEPS.THANK_YOU && <ThankYou onHome={handleGoHome} />}
     </InstituteLayout>
   );
 };
