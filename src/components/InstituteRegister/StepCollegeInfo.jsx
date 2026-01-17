@@ -45,13 +45,13 @@ const StepCollegeInfo = ({ onNext, onBack }) => {
       const d = college.collegeData;
 
       setForm({
-        instituteName: d.instituteName || "",
-        shortName: d.shortName || "",
-        address: d.address || "",
+        instituteName: d.college_name || "",
+        shortName: d.college_short_name || "",
+        address: d.college_address || "",
         pincode: d.pincode || "",
         website: d.website || "",
-        naacGrade: d.naacGrade || "",
-        financialLiteracy: d.financialLiteracy || "Yes",
+        naacGrade: d.naac || "",
+        financialLiteracy: d.fl_pitch ?? "Yes",
       });
 
       setStateId(d.state_id ? String(d.state_id) : "");

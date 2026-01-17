@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import InstituteLayout from "./InstituteLayout";
 import StepHeader from "./StepHeader";
@@ -11,20 +12,22 @@ import StepSimilarCollege from "./StepSimilarCollege";
 import StepCollegeInfo from "./StepCollegeInfo";
 import StepCourses from "./StepCourses";
 import ThankYou from "./Thankyou";
-import { getCollegeDetails } from "@/utils/Api/onboarding";
 
+import { getCollegeDetails } from "@/utils/Api/onboarding";
 import { useInstituteContext } from "@/context/InstituteContext";
+import { STEPS } from "@/constants/steps";
+
+const STORAGE_KEY = "instituteOnboardingProgress";
 
 const InstituteRegister = () => {
-  const { college } = useInstituteContext();
   const { setCollege } = useInstituteContext();
-  const [currentStep, setCurrentStep] = useState(1);
-  //const [otpSource, setOtpSource] = useState(null);
-  // values: "REGISTER" | "COLLEGE"
 
-  // 🔥 register | college
+  /* -------------------- CORE STATE -------------------- */
+  const [currentStep, setCurrentStep] = useState(null); // ⛔ start null
+  const [hydrated, setHydrated] = useState(false);
+
   const [otpMode, setOtpMode] = useState("register");
-  const [showThankYou, setShowThankYou] = useState(false);
+  //const [showThankYou, setShowThankYou] = useState(false);
 
   const [formData, setFormData] = useState({
     account: {},
@@ -34,23 +37,68 @@ const InstituteRegister = () => {
     courses: [],
   });
 
-  /* ================= STEP 1 → REGISTER ================= */
+  /* -------------------- RESTORE (RUNS FIRST) -------------------- */
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+      setCurrentStep(STEPS.REGISTRATION);
+      setHydrated(true);
+      return;
+    }
+
+    const parsed = JSON.parse(saved);
+    let stepToRestore = parsed.currentStep;
+
+    // 🚫 NEVER resume OTP
+    if (stepToRestore === STEPS.OTP) {
+      if (parsed.formData?.college && Object.keys(parsed.formData.college).length) {
+        stepToRestore = STEPS.COLLEGE_INFO;
+      } else {
+        stepToRestore = STEPS.REGISTRATION;
+      }
+    }
+
+    setCurrentStep(stepToRestore);
+    setFormData(parsed.formData || {});
+    setOtpMode(parsed.otpMode || "register");
+    //setShowThankYou(parsed.showThankYou || false);
+
+    setHydrated(true);
+  }, []);
+
+  /* -------------------- SAVE (AFTER HYDRATION ONLY) -------------------- */
+  useEffect(() => {
+    if (!hydrated || currentStep === null) return;
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        currentStep,
+        formData,
+        otpMode,
+        // showThankYou,
+      })
+    );
+  }, [hydrated, currentStep, formData, otpMode]);
+
+  /* -------------------- CLEAR AFTER THANK YOU -------------------- */
+  useEffect(() => {
+    if (currentStep === STEPS.THANK_YOU) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [currentStep]);
+
+  /* -------------------- STEP HANDLERS -------------------- */
 
   const handleRegisterSuccess = ({ account, onboardingUserId }) => {
-    setFormData((p) => ({
-      ...p,
-      account,
-      onboardingUserId,
-    }));
-
+    setFormData((p) => ({ ...p, account, onboardingUserId }));
     setOtpMode("register");
-    setCurrentStep(2); // 🔥 OPEN OTP
+    setCurrentStep(STEPS.OTP);
   };
 
   const fetchCollegePrefill = async (collegeId) => {
-    const res = await getCollegeDetails({
-      college_id: collegeId,
-    });
+    const res = await getCollegeDetails({ college_id: collegeId });
 
     if (res?.data?.status) {
       const d = res.data.data;
@@ -65,8 +113,6 @@ const InstituteRegister = () => {
           pincode: d.pincode || "",
           naacGrade: d.naac || "",
           financialLiteracy: d.fl_pitch ? "Yes" : "No",
-
-          // 👇 IMPORTANT for selects
           state_id: d.state_id ? String(d.state_id) : "",
           city_id: d.city_id ? String(d.city_id) : "",
         },
@@ -74,21 +120,10 @@ const InstituteRegister = () => {
     }
   };
 
-  const sidebarStep = (() => {
-    if (currentStep === 1 || currentStep === 2) return 1; // Register + OTP
-    if (currentStep === 3) return 2; // College selection + OTP
-    if (currentStep === 4) return 3; // College info
-    if (currentStep === 5 || currentStep === 6) return 4; // Courses + Thank You
-    return 1;
-  })();
-
-  /* ================= Thankyouu redirection! ================= */
-
   const handleGoHome = () => {
-    setCurrentStep(1);
+    setCurrentStep(STEPS.REGISTRATION);
     setOtpMode("register");
-    setShowThankYou(false);
-
+    //setShowThankYou(false);
     setFormData({
       account: {},
       onboardingUserId: null,
@@ -98,126 +133,115 @@ const InstituteRegister = () => {
     });
   };
 
-  /* ================= UI ================= */
+  /* -------------------- SIDEBAR STEP -------------------- */
+  const sidebarStep = (() => {
+    if (currentStep === STEPS.REGISTRATION || currentStep === STEPS.OTP) return 1;
+    if (currentStep === STEPS.COLLEGE_SELECT) return 2;
+    if (currentStep === STEPS.COLLEGE_INFO) return 3;
+    if (currentStep === STEPS.COURSES || currentStep === STEPS.THANK_YOU) return 4;
+    return 1;
+  })();
 
+  /* -------------------- GUARD -------------------- */
+  if (!hydrated || currentStep === null) {
+    return null; // or loader
+  }
+
+  /* -------------------- UI -------------------- */
   return (
     <InstituteLayout sidebarStep={sidebarStep}>
-      {/* STEP 1 : REGISTER */}
-      {/* <div className="relative overflow-hidden">
-        <div
-          key={currentStep}
-          className="animate-step transition-all duration-300 ease-out"
-        > */}
-          {currentStep === 1 && (
-            <>
-              <StepHeader step={1} title="Register" />
-              <StepAccount onRegistered={handleRegisterSuccess} />
-            </>
-          )}
-          {/* STEP 2 : OTP (REGISTER + COLLEGE) */}
-          {currentStep === 2 && (
-            <>
-              <StepHeader
-                step={otpMode === "register" ? 1 : 2}
-                title="Verify OTP"
-                description={
-                  otpMode === "college"
-                    ? "Verify OTP sent to registered college"
-                    : "Verify your mobile number"
-                }
-              />
+      {/* STEP 1 */}
+      {currentStep === STEPS.REGISTRATION && (
+        <>
+          <StepHeader step={1} title="Register" />
+          <StepAccount onRegistered={handleRegisterSuccess} />
+        </>
+      )}
 
-              <StepVerifyOtp
-                mode={otpMode}
-                college={formData.college}
-                onBack={() => {
-                  setCurrentStep(otpMode === "register" ? 1 : 3);
-                }}
-                onNext={async () => {
-                  if (otpMode === "register") {
-                    setCurrentStep(3); // after user OTP
-                  } else {
-                    const res = await getCollegeDetails({
-                      college_id: formData.college.collegeId,
-                    });
+      {/* STEP 2 */}
+      {currentStep === STEPS.OTP && (
+        <>
+          <StepHeader
+            step={otpMode === "register" ? 1 : 2}
+            title="Verify OTP"
+            description={
+              otpMode === "college"
+                ? "Verify OTP sent to registered college"
+                : "Verify your mobile number"
+            }
+          />
 
-                    if (res?.data?.status) {
-                      const d = res.data.data;
+          <StepVerifyOtp
+            mode={otpMode}
+            college={formData.college}
+            onBack={() =>
+              setCurrentStep(
+                otpMode === "register"
+                  ? STEPS.REGISTRATION
+                  : STEPS.COLLEGE_SELECT
+              )
+            }
+            onNext={() => {
+              if (otpMode === "register") {
+                setCurrentStep(STEPS.COLLEGE_SELECT);
+              } else {
+                setCurrentStep(STEPS.COLLEGE_INFO);
+              }
+            }}
+          />
+        </>
+      )}
 
-                      setCollege((prev) => ({
-                        ...prev,
-                        collegeData: {
-                          instituteName: d.college_name || "",
-                          shortName: d.college_short_name || "",
-                          address: d.college_address || "",
-                          website: d.website || "",
-                          pincode: d.pincode || "",
-                          naacGrade: d.naac || "",
-                          financialLiteracy: d.fl_pitch ? "Yes" : "No",
+      {/* STEP 3 */}
+      {currentStep === STEPS.COLLEGE_SELECT && (
+        <>
+          <StepHeader step={2} title="Select College" />
+          <StepSimilarCollege
+            onBack={() => setCurrentStep(STEPS.REGISTRATION)}
+            onNext={async (college) => {
+              if (college?.collegeId) {
+                await fetchCollegePrefill(college.collegeId);
+              }
+              setCurrentStep(STEPS.COLLEGE_INFO);
+            }}
+            onOtpRequired={(college) => {
+              setFormData((p) => ({ ...p, college }));
+              setOtpMode("college");
+              setCurrentStep(STEPS.OTP);
+            }}
+          />
+        </>
+      )}
 
-                          // 👇 REQUIRED FOR DROPDOWNS
-                          state_id: d.state_id ? String(d.state_id) : "",
-                          city_id: d.city_id ? String(d.city_id) : "",
-                        },
-                      }));
-                    }
-                    setCurrentStep(4); // after college OTP
-                  }
-                }}
-              />
-            </>
-          )}
+      {/* STEP 4 */}
+      {currentStep === STEPS.COLLEGE_INFO && (
+        <>
+          <StepHeader step={3} title="College Info" />
+          <StepCollegeInfo
+            onNext={() => setCurrentStep(STEPS.COURSES)}
+            onBack={() => setCurrentStep(STEPS.COLLEGE_SELECT)}
+          />
+        </>
+      )}
 
-          {currentStep === 3 && (
-            <>
-              <StepHeader step={2} title="Select College" />
-              <StepSimilarCollege
-                onBack={() => setCurrentStep(1)}
-                onNext={async (college) => {
-                  if (college?.collegeId) {
-                    await fetchCollegePrefill(college.collegeId);
-                  }
+      {/* STEP 5 */}
+      {currentStep === STEPS.COURSES && (
+        <>
+          <StepHeader step={4} title="Courses" />
+          <StepCourses
+            onNext={() => {
+              //setShowThankYou(true);
+              setCurrentStep(STEPS.THANK_YOU);
+            }}
+            onBack={() => setCurrentStep(STEPS.COLLEGE_INFO)}
+          />
+        </>
+      )}
 
-                  setCurrentStep(4);
-                }}
-                onOtpRequired={(college) => {
-                  setFormData((p) => ({ ...p, college }));
-                  setOtpMode("college");
-                  setCurrentStep(2); // OTP opens immediately
-                }}
-              />
-            </>
-          )}
-          {/* STEP 4 : COLLEGE INFO */}
-          {currentStep === 4 && (
-            <>
-              <StepHeader step={3} title="College Info" />
-              <StepCollegeInfo
-                onNext={() => setCurrentStep(5)}
-                onBack={() => setCurrentStep(3)}
-              />
-            </>
-          )}
-          {/* STEP 5 : COURSES */}
-          {currentStep === 5 && (
-            <>
-              <StepHeader step={4} title="Courses" />
-              <StepCourses
-                onNext={() => {
-                  setShowThankYou(true);
-                  setCurrentStep(6);
-                }} // ✅ FIX
-                onBack={() => setCurrentStep(4)}
-              />
-            </>
-          )}
-          {/* STEP 6 : THANK YOU */}
-          {currentStep === 6 && showThankYou && (
-            <ThankYou onHome={handleGoHome} />
-          )}
-        {/* </div>
-      </div> */}
-      {/* ✅ FINAL PAGE */}
+      {/* STEP 6 */}
+      {currentStep === STEPS.THANK_YOU &&  (
+        <ThankYou onHome={handleGoHome} />
+      )}
     </InstituteLayout>
   );
 };

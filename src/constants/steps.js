@@ -1,0 +1,8 @@
+export const STEPS = {
+  REGISTRATION: 1,
+  OTP: 2,
+  COLLEGE_EXISTENCE: 3,
+  COLLEGE_INFO: 4,
+  COURSES: 5,
+  THANK_YOU: 6,
+};
